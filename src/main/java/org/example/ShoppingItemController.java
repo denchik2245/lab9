@@ -4,33 +4,30 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/items")
 @CrossOrigin(origins = "*")
 public class ShoppingItemController {
-    private final ShoppingItemRepository repository;
+    private final ShoppingItemService service;
 
-    public ShoppingItemController(ShoppingItemRepository repository) {
-        this.repository = repository;
+    public ShoppingItemController(ShoppingItemService service) {
+        this.service = service;
     }
 
     @GetMapping
     public List<ShoppingItem> getAll() {
-        return repository.findAll();
+        return service.getAll();
     }
 
     @PostMapping
     public ShoppingItem add(@RequestBody ShoppingItem item) {
-        return repository.save(item);
+        return service.add(item);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        Optional<ShoppingItem> existing = repository.findById(id);
-        if (existing.isPresent()) {
-            repository.deleteById(id);
+        if (service.delete(id)) {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
@@ -38,13 +35,8 @@ public class ShoppingItemController {
 
     @PutMapping("/{id}/bought")
     public ResponseEntity<ShoppingItem> markBought(@PathVariable Long id) {
-        Optional<ShoppingItem> existing = repository.findById(id);
-        if (existing.isPresent()) {
-            ShoppingItem item = existing.get();
-            item.setBought(true);
-            repository.save(item);
-            return ResponseEntity.ok(item);
-        }
-        return ResponseEntity.notFound().build();
+        return service.markBought(id)
+                .map(item -> ResponseEntity.ok(item))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

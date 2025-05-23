@@ -1,21 +1,199 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Shopping List</title>
+    <title>Список покупок</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            color: #333;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #addForm {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        #itemName {
+            width: 250px;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px 0 0 4px;
+            outline: none;
+            font-size: 16px;
+        }
+        #addForm button {
+            padding: 8px 16px;
+            border: none;
+            background: #28a745;
+            color: white;
+            font-size: 16px;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+            transition: background .2s;
+        }
+        #addForm button:hover { background: #218838; }
+
+        #items {
+            list-style: none;
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 0;
+        }
+        #items li {
+            background: white;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        /* текст товара */
+        #items li .item-text {
+            flex-grow: 1;
+            font-size: 16px;
+        }
+        /* состояние куплено */
+        #items li.bought .item-text {
+            color: #28a745;
+            font-weight: bold;
+        }
+        #items li.bought .item-text::before {
+            content: "✓ ";
+            color: #28a745;
+        }
+        /* кнопки */
+        #items li button {
+            margin-left: 8px;
+            padding: 4px 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background .2s;
+        }
+        #items li button.bought-btn {
+            background: #17a2b8;
+            color: white;
+        }
+        #items li button.bought-btn:hover {
+            background: #138496;
+        }
+        #items li button.delete-btn {
+            background: #dc3545;
+            color: white;
+        }
+        #items li button.delete-btn:hover {
+            background: #c82333;
+        }
+    </style>
 </head>
 <body>
-<h1>Shopping List</h1>
+<h1>Список покупок</h1>
 
 <form id="addForm">
-    <input type="text" id="itemName" placeholder="Item name" required />
-    <button type="submit">Add</button>
+    <input
+            type="text"
+            id="itemName"
+            placeholder="Название товара"
+            required
+    />
+    <button type="submit">Добавить</button>
 </form>
 
 <ul id="items"></ul>
 
-<script src="app.js"></script>
+<script>
+    const API_URL = '/api/items';
+
+    function fetchItems() {
+        $.get(API_URL)
+            .done(data => {
+                const $list = $('#items').empty();
+                data.forEach(item => {
+                    // создаём LI и span с текстом
+                    const li = $('<li>')
+                        .toggleClass('bought', item.bought); // добавляем класс, если куплено
+                    const span = $('<span>')
+                        .addClass('item-text')
+                        .text(item.name);
+                    li.append(span);
+
+                    // кнопка "Куплено" только если ещё не куплено
+                    if (!item.bought) {
+                        $('<button>')
+                            .addClass('bought-btn')
+                            .text('Куплено')
+                            .click(() => markBought(item.id))
+                            .appendTo(li);
+                    }
+
+                    // кнопка "Удалить"
+                    $('<button>')
+                        .addClass('delete-btn')
+                        .text('Удалить')
+                        .click(() => deleteItem(item.id))
+                        .appendTo(li);
+
+                    $list.append(li);
+                });
+            })
+            .fail(err => console.error('GET failed', err));
+    }
+
+
+    function addItem(name) {
+        $.ajax({
+            url: API_URL,
+            type: 'POST',
+            data: JSON.stringify({ name }),
+            contentType: 'application/json',
+            dataType: 'json'
+        })
+            .done(() => {
+                $('#itemName').val('');
+                fetchItems();
+            })
+            .fail(err => console.error('POST failed', err));
+    }
+
+    function markBought(id) {
+        $.ajax({
+            url: `${API_URL}/${id}/bought`,
+            type: 'PUT'
+        })
+            .done(fetchItems)
+            .fail(err => console.error('PUT failed', err));
+    }
+
+    function deleteItem(id) {
+        $.ajax({
+            url: `${API_URL}/${id}`,
+            type: 'DELETE'
+        })
+            .done(fetchItems)
+            .fail(err => console.error('DELETE failed', err));
+    }
+
+    // Инициализация
+    $(function() {
+        $('#addForm').submit(e => {
+            e.preventDefault();
+            const name = $('#itemName').val().trim();
+            if (name) addItem(name);
+        });
+        fetchItems();
+    });
+</script>
 </body>
 </html>
